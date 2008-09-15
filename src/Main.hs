@@ -6,6 +6,7 @@ import FUtil
 import HSH
 import System.Directory
 import System.Environment
+import System.FilePath
 import Text.HTML.TagSoup
 import qualified Data.Set as Set
 
@@ -40,12 +41,15 @@ readFileStrict f = do
 main :: IO ()
 main = do
   args <- getArgs
+  home <- getEnv "HOME"
   let
+    dir = home </> ".dgp"
     cached = True
     num = 10
     lev = read . fromMaybe "10" $ listToMaybe args
-    f = "lev." ++ show lev
-    fDid = "did"
+    f = dir </> "lev." ++ show lev
+    fDid = dir </> "did"
+  unlessM (doesDirectoryExist dir) $ createDirectory dir
   cached' <- if cached then doesFileExist f else return False
   c <- if cached' then readFile f else do
     t <- getTags lev

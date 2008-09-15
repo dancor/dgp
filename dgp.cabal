@@ -5,7 +5,7 @@ license-file:   LICENSE
 author:         dan corson <danl@alum.mit.edu>
 synopsis:       do go problems from goproblems.com
 build-type:     Simple
-build-depends:  FUtil, HSH, base, containers, directory, tagsoup
+build-depends:  FUtil, HSH, base, containers, directory, tagsoup, filepath
 
 executable:     dgp
 main-is:        Main.hs
