@@ -3,9 +3,9 @@ version:        0.1
 license:        GPL
 license-file:   LICENSE
 author:         dan corson <danl@alum.mit.edu>
-synopsis:       <syn>
+synopsis:       do go problems from goproblems.com
 build-type:     Simple
-build-depends:  base, haskell98
+build-depends:  FUtil, HSH, base, containers, directory, tagsoup
 
 executable:     dgp
 main-is:        Main.hs
