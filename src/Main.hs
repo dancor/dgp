@@ -60,7 +60,7 @@ levToDiff n = case n of
 
 getTags :: Int -> IO [Tag]
 getTags lev = do
-  let 
+  let
     d = levToDiff lev
     params = [
       ("doit", "1"),
@@ -74,11 +74,6 @@ getTags lev = do
   s <- run ("wget", ["http://goproblems.com/problems.php3", "-O", "-",
     "--post-data", intercalate "&" $ map (\ (k, v) -> k ++ "=" ++ v) params])
   return $ parseTags s
-
-readFileStrict :: FilePath -> IO String
-readFileStrict f = do
-  c <- readFile f
-  length c `seq` return c
 
 doErr :: String -> a
 doErr err = let
@@ -103,10 +98,10 @@ main = do
   cached' <- if cached then doesFileExist f else return False
   c <- if cached' then readFile f else do
     t <- getTags lev
-    let 
+    let
       dropToTable = dropWhile (not . isTagOpenName "table")
       aToUrl (TagOpen "a" attrs) = snd $ head attrs
-      urls = map aToUrl . head . stripe 2 . filter (isTagOpenName "a") . 
+      urls = map aToUrl . head . stripe 2 . filter (isTagOpenName "a") .
         takeWhile (not . isTagCloseName "table") .
         dropToTable . drop 1 . dropToTable
       c = unlines . map (takeWhile (/= '&') . drop 1 . dropWhile (/= '=')) $
@@ -114,16 +109,19 @@ main = do
     writeFile f c
     return c
   let
-    doOne c = do
+    doOne = do
       unlessM (doesFileExist fDid) $ writeFile fDid ""
       probsDid <- fmap (Set.fromList . lines) $ readFileStrict fDid
       let
-        probs = Set.fromList $ lines c 
+        probs = Set.fromList $ lines c
         probsUndid = probs `Set.difference` probsDid
-        prob = head $ Set.toList probsUndid
-        probsDid' = Set.insert prob probsDid 
-      writeFile fDid . unlines $ Set.toList probsDid'
-      runIO ("ff", ["http://goproblems.com/prob.php3?id=" ++ prob])
-  sequence_ . 
-    intersperse (putStrLn "press enter when done.." >> getLine >> return ()) .
-    replicate (optNum opts) $ doOne c
+      case Set.toList probsUndid of
+        [] -> do
+          return False
+        prob:_ -> do
+          writeFile fDid . unlines . Set.toList $ Set.insert prob probsDid
+          runIO ("ff", ["http://goproblems.com/prob.php3?id=" ++ prob])
+          return True
+    doN n i = when (n > 0) . ifM doOne (when (n > 1) $ i >> doN (n - 1) i) .
+      print $ "all problems done when there were " ++ show n ++ " left to do."
+  doN (optNum opts) $ putStrLn "press enter when done.." >> getLine
