@@ -3,12 +3,14 @@ module Main where
 import Control.Monad
 import Data.List
 import Data.Maybe
+import Data.Unamb
 import FUtil
 import HSH
 import System.Console.GetOpt
 import System.Directory
 import System.Environment
 import System.FilePath
+import System.IO
 import Text.HTML.TagSoup
 import qualified Data.Set as Set
 
@@ -92,6 +94,7 @@ main = do
     lev = optLevel opts
     f = dir </> "lev." ++ show lev
     fDid = dir </> "did"
+    dgpWait = dir </> "wait"
   unless (null errs) . doErr $ concat errs
   unless (null moreArgs) $ doErr "Unexpected arguments\n"
   unlessM (doesDirectoryExist dir) $ createDirectory dir
@@ -124,4 +127,6 @@ main = do
           return True
     doN n i = when (n > 0) . ifM doOne (when (n > 1) $ i >> doN (n - 1) i) .
       print $ "all problems done when there were " ++ show n ++ " left to do."
-  doN (optNum opts) $ putStrLn "press enter when done.." >> getLine
+  doN (optNum opts) $ --race
+    --(putStrLn "press enter when done.." >> getLine >> return ())
+    withFile dgpWait ReadMode hGetLine
