@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Concurrent
 import Control.Monad
 import Data.List
 import Data.Maybe
@@ -127,6 +128,14 @@ main = do
           return True
     doN n i = when (n > 0) . ifM doOne (when (n > 1) $ i >> doN (n - 1) i) .
       print $ "all problems done when there were " ++ show n ++ " left to do."
+
+  -- kill any pre-existing hotkey presses
+  -- this is a hack and makes a "end of file" error print
+  t <- forkIO $ withFile dgpWait ReadMode (\ h -> forever $
+    hGetLine h >> threadDelay 5000)
+  threadDelay 500000
+  killThread t
+
   doN (optNum opts) $ --race
     --(putStrLn "press enter when done.." >> getLine >> return ())
     withFile dgpWait ReadMode hGetLine
