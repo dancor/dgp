@@ -17,13 +17,15 @@ import qualified Data.Set as Set
 
 data Options = Options {
   optNum :: Int,
-  optLevel :: Int
+  optLevel :: Int,
+  optCache :: Bool
   }
 
 defaultOptions :: Options
 defaultOptions = Options {
   optNum = 10,
-  optLevel = 10
+  optLevel = 10,
+  optCache = True
   }
 
 options :: [OptDescr (Options -> Options)]
@@ -34,7 +36,10 @@ options = [
   Option "l" ["level"]
     (ReqArg (\ l o -> o {optLevel = read l}) "LEVEL")
     "level (30 is 30k, 25, 20, 18, 15, 12, 10, 8,\n\
-    \7, .., 1, -1 is 1dan, -2, .. -6)"
+    \7, .., 1, -1 is 1dan, -2, .. -6)",
+  Option "c" ["clear-cache"]
+    (NoArg (\ o -> o {optCache = False}))
+    "update the saved problem cache for this level"
   ]
 
 levToDiff :: (Num t, Num t1) => t -> t1
@@ -92,7 +97,7 @@ main = do
     (optsPre, moreArgs, errs) = getOpt Permute options args
     opts = foldl (flip id) defaultOptions optsPre
     dir = home </> ".dgp"
-    cached = True
+    cached = optCache opts
     lev = optLevel opts
     f = dir </> "lev." ++ show lev
     fDid = dir </> "did"
