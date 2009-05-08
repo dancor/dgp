@@ -99,6 +99,9 @@ main = do
   unless (null errs) . doErr $ concat errs
   unless (null moreArgs) $ doErr "Unexpected arguments\n"
   unlessM (doesDirectoryExist dir) $ createDirectory dir
+  unlessM (doesFileExist $ dgpWait) $ run ("mkfifo", [dgpWait])
+  haveGit <- doesDirectoryExist $ dir </> ".git"
+  when haveGit . inCd dir $ run "git pull && git push"
   cached' <- if cached then doesFileExist f else return False
   c <- if cached' then readFile f else do
     t <- getTags lev
@@ -139,3 +142,6 @@ main = do
   doN (optNum opts) $ --race
     --(putStrLn "press enter when done.." >> getLine >> return ())
     withFile dgpWait ReadMode hGetLine
+
+  when haveGit . inCd dir $
+    run "git commit -am 'dgp autosave' && git pull && git push"
