@@ -18,14 +18,16 @@ import qualified Data.Set as Set
 data Options = Options {
   optNum :: Int,
   optLevel :: Int,
-  optCache :: Bool
+  optCache :: Bool,
+  optRemoteVCS :: Bool
   }
 
 defaultOptions :: Options
 defaultOptions = Options {
   optNum = 10,
   optLevel = 10,
-  optCache = True
+  optCache = True,
+  optRemoteVCS = True
   }
 
 options :: [OptDescr (Options -> Options)]
@@ -39,7 +41,10 @@ options = [
     \7, .., 1, -1 is 1dan, -2, .. -6)",
   Option "c" ["clear-cache"]
     (NoArg (\ o -> o {optCache = False}))
-    "update the saved problem cache for this level"
+    "update the saved problem cache for this level",
+  Option "R" ["no-remote-vcs"]
+    (NoArg (\ o -> o {optRemoteVCS = False}))
+    "don't push/pull if ~/.dgp/ is version-controlled"
   ]
 
 levToDiff :: (Num t, Num t1) => t -> t1
@@ -107,7 +112,7 @@ main = do
   unlessM (doesDirectoryExist dir) $ createDirectory dir
   unlessM (doesFileExist $ dgpWait) $ run ("mkfifo", [dgpWait])
   haveGit <- doesDirectoryExist $ dir </> ".git"
-  when haveGit . inCd dir $ run "git pull && git push"
+  when (haveGit && optRemoteVCS opts) . inCd dir $ run "git pull && git push"
   cached' <- if cached then doesFileExist f else return False
   c <- if cached' then readFile f else do
     t <- getTags lev
@@ -149,5 +154,5 @@ main = do
     --(putStrLn "press enter when done.." >> getLine >> return ())
     withFile dgpWait ReadMode hGetLine
 
-  when haveGit . inCd dir $
-    run "git commit -am 'dgp autosave' && git pull && git push"
+  when haveGit . inCd dir $ run "git commit -am 'dgp autosave'"
+  when (haveGit && optRemoteVCS opts) . inCd dir $ run "git pull && git push"
