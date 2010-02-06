@@ -19,7 +19,7 @@ data Options = Options {
   optNum :: Int,
   optLevel :: Int,
   optCache :: Bool,
-  optSync :: Bool
+  optRemoteVCS :: Bool
   }
 
 defaultOptions :: Options
@@ -27,7 +27,7 @@ defaultOptions = Options {
   optNum = 10,
   optLevel = 10,
   optCache = True,
-  optSync = True
+  optRemoteVCS = True
   }
 
 options :: [OptDescr (Options -> Options)]
@@ -42,9 +42,9 @@ options = [
   Option "c" ["clear-cache"]
     (NoArg (\ o -> o {optCache = False}))
     "update the saved problem cache for this level",
-  Option "S" ["dont-sync"]
-    (NoArg (\ o -> o {optSync = False}))
-    "if ~/.dgp is a git repo, don't sync it"
+  Option "R" ["no-remote-vcs"]
+    (NoArg (\ o -> o {optRemoteVCS = False}))
+    "don't push/pull if ~/.dgp/ is version-controlled"
   ]
 
 levToDiff :: (Num t, Num t1) => t -> t1
@@ -140,9 +140,8 @@ main = do
   unless (null moreArgs) $ doErr "Unexpected arguments\n"
   unlessM (doesDirectoryExist dir) $ createDirectory dir
   unlessM (doesFileExist $ dgpWait) $ run ("mkfifo", [dgpWait])
-  haveGit <- if optSync opts then doesDirectoryExist $ dir </> ".git"
-    else return False
-  when haveGit . inCd dir $ run "git pull && git push"
+  haveGit <- doesDirectoryExist $ dir </> ".git"
+  when (haveGit && optRemoteVCS opts) . inCd dir $ run "git pull && git push"
   cached' <- if cached then doesFileExist f else return False
   c <- if cached' then readFile f else do
     t <- getTags lev
@@ -172,5 +171,5 @@ main = do
     (putStrLn "press enter when done.." >> getLine >> return ())
     --withFile dgpWait ReadMode hGetLine
 
-  when haveGit . inCd dir $
-    run "git commit -am 'dgp autosave' && git pull && git push"
+  when haveGit . inCd dir $ run "git commit -am 'dgp autosave'"
+  when (haveGit && optRemoteVCS opts) . inCd dir $ run "git pull && git push"
