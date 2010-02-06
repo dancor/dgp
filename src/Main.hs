@@ -18,14 +18,16 @@ import qualified Data.Set as Set
 data Options = Options {
   optNum :: Int,
   optLevel :: Int,
-  optCache :: Bool
+  optCache :: Bool,
+  optSync :: Bool
   }
 
 defaultOptions :: Options
 defaultOptions = Options {
   optNum = 10,
   optLevel = 10,
-  optCache = True
+  optCache = True,
+  optSync = True
   }
 
 options :: [OptDescr (Options -> Options)]
@@ -39,7 +41,10 @@ options = [
     \7, .., 1, -1 is 1dan, -2, .. -6)",
   Option "c" ["clear-cache"]
     (NoArg (\ o -> o {optCache = False}))
-    "update the saved problem cache for this level"
+    "update the saved problem cache for this level",
+  Option "S" ["dont-sync"]
+    (NoArg (\ o -> o {optSync = False}))
+    "if ~/.dgp is a git repo, don't sync it"
   ]
 
 levToDiff :: (Num t, Num t1) => t -> t1
@@ -74,11 +79,19 @@ getTags lev = do
     params = [
       ("doit", "1"),
       ("num", "0"),
-      ("genre", ""),
+      ("genre[]", "elementary"),
+      ("genre[]", "life and death"),
+      ("genre[]", "joseki"),
+      ("genre[]", "fuseki"),
+      ("genre[]", "tesuji"),
+      ("genre[]", "best move"),
+      ("genre[]", "endgame"),
       ("diff0", show d),
       ("diff1", show (d + 1)),
       ("orderby", "recent"),
-      ("status", "any")
+      ("status[]", "untried"),
+      ("status[]", "unsolved"),
+      ("status[]", "solved")
       ]
   s <- run ("wget", ["http://goproblems.com/problems.php3", "-O", "-",
     "--post-data", intercalate "&" $ map (\ (k, v) -> k ++ "=" ++ v) params])
@@ -88,6 +101,27 @@ doErr :: String -> a
 doErr err = let
   usage = "usage: dgp [options]"
   in error $ err ++ usageInfo usage options
+
+doOne :: FilePath -> String -> IO Bool
+doOne fDid c = do
+  unlessM (doesFileExist fDid) $ writeFile fDid ""
+  probsDid <- fmap (Set.fromList . lines) $ readFileStrict fDid
+  let
+    probs = Set.fromList $ lines c
+    probsUndid = probs `Set.difference` probsDid
+  print $ "probs count: " ++ show (length $ Set.toList probs)
+  print $ "did count: " ++ show (length $ Set.toList probsDid)
+  print $ "undid count: " ++ show (length $ Set.toList probsUndid)
+  case Set.toList probsUndid of
+    [] -> do
+      return False
+    prob:_ -> do
+      writeFile fDid . unlines . Set.toList $ Set.insert prob probsDid
+      let
+        url = "http://goproblems.com/prob.php3?id=" ++ prob
+      print url
+      runIO ("firefox", [url])
+      return True
 
 main :: IO ()
 main = do
@@ -106,7 +140,8 @@ main = do
   unless (null moreArgs) $ doErr "Unexpected arguments\n"
   unlessM (doesDirectoryExist dir) $ createDirectory dir
   unlessM (doesFileExist $ dgpWait) $ run ("mkfifo", [dgpWait])
-  haveGit <- doesDirectoryExist $ dir </> ".git"
+  haveGit <- if optSync opts then doesDirectoryExist $ dir </> ".git"
+    else return False
   when haveGit . inCd dir $ run "git pull && git push"
   cached' <- if cached then doesFileExist f else return False
   c <- if cached' then readFile f else do
@@ -122,20 +157,8 @@ main = do
     writeFile f c
     return c
   let
-    doOne = do
-      unlessM (doesFileExist fDid) $ writeFile fDid ""
-      probsDid <- fmap (Set.fromList . lines) $ readFileStrict fDid
-      let
-        probs = Set.fromList $ lines c
-        probsUndid = probs `Set.difference` probsDid
-      case Set.toList probsUndid of
-        [] -> do
-          return False
-        prob:_ -> do
-          writeFile fDid . unlines . Set.toList $ Set.insert prob probsDid
-          runIO ("ff", ["http://goproblems.com/prob.php3?id=" ++ prob])
-          return True
-    doN n i = when (n > 0) . ifM doOne (when (n > 1) $ i >> doN (n - 1) i) .
+    doN n i = when (n > 0) .
+      ifM (doOne fDid c) (when (n > 1) $ i >> doN (n - 1) i) .
       print $ "all problems done when there were " ++ show n ++ " left to do."
 
   -- kill any pre-existing hotkey presses
@@ -146,8 +169,8 @@ main = do
   killThread t
 
   doN (optNum opts) $ --race
-    --(putStrLn "press enter when done.." >> getLine >> return ())
-    withFile dgpWait ReadMode hGetLine
+    (putStrLn "press enter when done.." >> getLine >> return ())
+    --withFile dgpWait ReadMode hGetLine
 
   when haveGit . inCd dir $
     run "git commit -am 'dgp autosave' && git pull && git push"
