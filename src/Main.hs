@@ -160,16 +160,22 @@ main = do
       ifM (doOne fDid c) (when (n > 1) $ i >> doN (n - 1) i) .
       print $ "all problems done when there were " ++ show n ++ " left to do."
 
+  -- ReadWriteMode not ReadMode so that unblocking fifo doesn't immediately EOF
+  -- http://www.haskell.org/haskellwiki/GHC:FAQ#When_I_open_a_FIFO_.28named_pipe.29_and_try_to_read_from_it.2C_I_get_EOF_immediately.
+  hFifo <- openFile dgpWait ReadWriteMode
   -- kill any pre-existing hotkey presses
   -- this is a hack and makes a "end of file" error print
-  t <- forkIO $ withFile dgpWait ReadMode (\ h -> forever $
-    hGetLine h >> threadDelay 5000)
+  t <- forkIO . forever $ hGetLine hFifo >> threadDelay 5000
   threadDelay 500000
   killThread t
+  -- reopen necessary for some reason
+  hClose hFifo
+  hFifo <- openFile dgpWait ReadWriteMode
 
-  doN (optNum opts) $ --race
+  doN (optNum opts) $ race
     (putStrLn "press enter when done.." >> getLine >> return ())
-    --withFile dgpWait ReadMode hGetLine
+    (hGetLine hFifo >> return ())
+  hClose hFifo
 
   when haveGit . inCd dir $ run "git commit -am 'dgp autosave'"
   when (haveGit && optRemoteVCS opts) . inCd dir $ run "git pull && git push"
