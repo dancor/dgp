@@ -120,7 +120,7 @@ doOne fDid c = do
       let
         url = "http://goproblems.com/prob.php3?id=" ++ prob
       print url
-      runIO ("firefox", [url])
+      runIO ("ff --firefox", [url])
       return True
 
 main :: IO ()
