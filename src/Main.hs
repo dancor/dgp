@@ -112,7 +112,7 @@ doOne fDid c = do
   print $ "probs count: " ++ show (length $ Set.toList probs)
   print $ "did count: " ++ show (length $ Set.toList probsDid)
   print $ "undid count: " ++ show (length $ Set.toList probsUndid)
-  case Set.toList probsUndid of
+  case sort $ Set.toList probsUndid of
     [] -> do
       return False
     prob:_ -> do
