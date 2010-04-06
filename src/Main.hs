@@ -5,6 +5,7 @@ import Control.Monad
 import Data.List
 import Data.Maybe
 import Data.Unamb
+import Data.Char
 import FUtil
 import HSH
 import System.Console.GetOpt
@@ -14,6 +15,7 @@ import System.FilePath
 import System.IO
 import Text.HTML.TagSoup
 import qualified Data.Set as Set
+import qualified Data.ByteString as BS
 
 data Options = Options {
   optNum :: Int,
@@ -72,7 +74,6 @@ levToDiff n = case n of
   -6 -> 20
   _ -> error "unknown level"
 
-getTags :: Int -> IO [Tag]
 getTags lev = do
   let
     d = levToDiff lev
@@ -93,9 +94,9 @@ getTags lev = do
       ("status[]", "unsolved"),
       ("status[]", "solved")
       ]
-  s <- run ("wget", ["http://goproblems.com/problems.php3", "-O", "-",
+  c <- run ("wget", ["http://goproblems.com/problems.php3", "-O", "-",
     "--post-data", intercalate "&" $ map (\ (k, v) -> k ++ "=" ++ v) params])
-  return $ parseTags s
+  return . parseTags . map (chr . fromIntegral) $ BS.unpack c
 
 doErr :: String -> a
 doErr err = let
@@ -120,7 +121,7 @@ doOne fDid c = do
       let
         url = "http://goproblems.com/prob.php3?id=" ++ prob
       print url
-      runIO ("ff", ["--firefox", url])
+      runIO ("ff", [url])
       return True
 
 main :: IO ()
