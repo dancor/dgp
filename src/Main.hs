@@ -74,6 +74,7 @@ levToDiff n = case n of
   -6 -> 20
   _ -> error "unknown level"
 
+getTags :: (RunResult (m BS.ByteString), Monad m, Num t) => t -> m [Tag [Char]]
 getTags lev = do
   let
     d = levToDiff lev
